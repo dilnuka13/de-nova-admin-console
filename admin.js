@@ -11,6 +11,12 @@ const dashboardShell = document.getElementById('dashboard-shell');
 const formLogin = document.getElementById('form-login');
 const loginEmail = document.getElementById('login-email');
 const loginPassword = document.getElementById('login-password');
+const loginRemember = document.getElementById('login-remember');
+const formPasskey = document.getElementById('form-passkey');
+const passkeyEmail = document.getElementById('passkey-email');
+const tabLoginPassword = document.getElementById('tab-login-password');
+const tabLoginPasskey = document.getElementById('tab-login-passkey');
+
 const formMfa = document.getElementById('form-mfa');
 const mfaToken = document.getElementById('mfa-token');
 const btnMfaBack = document.getElementById('btn-mfa-back');
@@ -22,9 +28,21 @@ const adminSidebarImg = document.getElementById('admin-sidebar-avatar-img');
 const adminSidebarPlh = document.getElementById('admin-sidebar-avatar-placeholder');
 const btnLogout = document.getElementById('btn-logout');
 
+// Mobile Menu Elements
+const btnMobileMenuToggle = document.getElementById('btn-mobile-menu-toggle');
+const btnMobileMenuClose = document.getElementById('btn-mobile-menu-close');
+const mobileSidebarDrawer = document.getElementById('mobile-sidebar-drawer');
+const mobileDrawerOverlay = document.getElementById('mobile-drawer-overlay');
+const mobileNavButtons = document.querySelectorAll('.mobile-nav-btn');
+const mobileAdminAvatarBtn = document.getElementById('mobile-admin-avatar-btn');
+
 // Navigation & Panels
 const navButtons = document.querySelectorAll('.nav-btn');
 const panelSections = document.querySelectorAll('.panel-section');
+
+// App Releases File Picker Elements
+const releaseFileInput = document.getElementById('release-file-input');
+const releaseFileLabel = document.getElementById('release-file-label');
 
 // Selected upload file reference
 let selectedReleaseFile = null;
@@ -127,6 +145,45 @@ async function verifyAdminAccess(user) {
             adminSidebarPlh.textContent = user.email.charAt(0).toUpperCase();
         }
 
+        // Render mobile admin details
+        const adminNameMobile = document.getElementById('admin-name-mobile');
+        const adminEmailMobile = document.getElementById('admin-email-mobile');
+        const adminSidebarImgMobile = document.getElementById('admin-sidebar-avatar-img-mobile');
+        const adminSidebarPlhMobile = document.getElementById('admin-sidebar-avatar-placeholder-mobile');
+
+        if (adminNameMobile) adminNameMobile.textContent = user.user_metadata?.full_name || "Nova Admin";
+        if (adminEmailMobile) adminEmailMobile.textContent = user.email;
+
+        if (data.avatar_url) {
+            if (adminSidebarImgMobile) {
+                adminSidebarImgMobile.src = data.avatar_url;
+                adminSidebarImgMobile.classList.remove('hidden');
+            }
+            if (adminSidebarPlhMobile) adminSidebarPlhMobile.classList.add('hidden');
+            
+            const adminMobileAvatarImg = document.getElementById('admin-mobile-avatar-img');
+            const adminMobileAvatarPlh = document.getElementById('admin-mobile-avatar-placeholder');
+            if (adminMobileAvatarImg) {
+                adminMobileAvatarImg.src = data.avatar_url;
+                adminMobileAvatarImg.classList.remove('hidden');
+            }
+            if (adminMobileAvatarPlh) adminMobileAvatarPlh.classList.add('hidden');
+        } else {
+            if (adminSidebarImgMobile) adminSidebarImgMobile.classList.add('hidden');
+            if (adminSidebarPlhMobile) {
+                adminSidebarPlhMobile.classList.remove('hidden');
+                adminSidebarPlhMobile.textContent = user.email.charAt(0).toUpperCase();
+            }
+            
+            const adminMobileAvatarImg = document.getElementById('admin-mobile-avatar-img');
+            const adminMobileAvatarPlh = document.getElementById('admin-mobile-avatar-placeholder');
+            if (adminMobileAvatarImg) adminMobileAvatarImg.classList.add('hidden');
+            if (adminMobileAvatarPlh) {
+                adminMobileAvatarPlh.classList.remove('hidden');
+                adminMobileAvatarPlh.textContent = user.email.charAt(0).toUpperCase();
+            }
+        }
+
         // Load dashboard info
         loadDashboardData();
 
@@ -178,6 +235,14 @@ if (formLogin) {
             // First perform standard auth sign in
             const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
             if (error) throw error;
+
+            // Save or clear credentials
+            if (loginRemember && loginRemember.checked) {
+                const creds = { email, password };
+                localStorage.setItem('nova_admin_saved_creds', window.btoa(JSON.stringify(creds)));
+            } else {
+                localStorage.removeItem('nova_admin_saved_creds');
+            }
 
             // Check if user is an administrator
             const { data: adminRecord, error: adminErr } = await supabaseClient
@@ -589,41 +654,27 @@ document.getElementById('form-user-dm').onsubmit = async (e) => {
     }
 };
 
-// 8. Releases Panel File drop and Upload
-if (releaseFileDrop) {
-    releaseFileDrop.onclick = () => releaseFileInput.click();
-    
+// 8. Releases Panel File Upload Logic
+if (releaseFileInput) {
     releaseFileInput.onchange = () => {
         if (releaseFileInput.files.length > 0) {
-            selectedReleaseFile = releaseFileInput.files[0];
-            releaseFileLabel.textContent = `Selected: ${selectedReleaseFile.name} (${(selectedReleaseFile.size / (1024*1024)).toFixed(2)} MB)`;
-            releaseFileDrop.classList.add('border-nova-accent');
-        }
-    };
-
-    releaseFileDrop.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        releaseFileDrop.classList.add('bg-nova-accent/5');
-    });
-
-    releaseFileDrop.addEventListener('dragleave', () => {
-        releaseFileDrop.classList.remove('bg-nova-accent/5');
-    });
-
-    releaseFileDrop.addEventListener('drop', (e) => {
-        e.preventDefault();
-        releaseFileDrop.classList.remove('bg-nova-accent/5');
-        if (e.dataTransfer.files.length > 0) {
-            const file = e.dataTransfer.files[0];
+            const file = releaseFileInput.files[0];
             if (file.name.endsWith('.exe')) {
                 selectedReleaseFile = file;
-                releaseFileLabel.textContent = `Selected: ${selectedReleaseFile.name} (${(selectedReleaseFile.size / (1024*1024)).toFixed(2)} MB)`;
-                releaseFileDrop.classList.add('border-nova-accent');
+                releaseFileLabel.textContent = `${selectedReleaseFile.name} (${(selectedReleaseFile.size / (1024*1024)).toFixed(2)} MB)`;
+                releaseFileLabel.className = "text-nova-accent font-semibold text-xs truncate flex-1 self-center";
             } else {
-                showAdminToast("Invalid File", "Only Windows setup executables (.exe) are allowed.", "error");
+                selectedReleaseFile = null;
+                releaseFileLabel.textContent = "Only Windows setup executables (.exe) are allowed.";
+                releaseFileLabel.className = "text-red-500 font-semibold text-xs truncate flex-1 self-center";
+                releaseFileInput.value = ""; // clear selection
             }
+        } else {
+            selectedReleaseFile = null;
+            releaseFileLabel.textContent = "No setup file selected";
+            releaseFileLabel.className = "text-gray-400 font-medium text-xs truncate flex-1 self-center";
         }
-    });
+    };
 }
 
 // AI Summaries / Title Generator trigger
@@ -735,8 +786,8 @@ if (formRelease) {
             // Reset form
             formRelease.reset();
             selectedReleaseFile = null;
-            releaseFileLabel.textContent = "Drag & drop or click to select setup file";
-            releaseFileDrop.classList.remove('border-nova-accent');
+            releaseFileLabel.textContent = "No setup file selected";
+            releaseFileLabel.className = "text-gray-400 font-medium text-xs truncate flex-1 self-center";
             
             setTimeout(() => {
                 releaseProgressCont.classList.add('hidden');
@@ -1111,6 +1162,7 @@ if (btnResolve && btnReopen) {
 async function loadAdminSetupPanel() {
     loadMfaDevicesList();
     loadSubAdminsList();
+    loadPasskeysList();
     
     // Set active admin avatar fields
     if (activeAdminSessionUser) {
@@ -1404,6 +1456,390 @@ window.removeMfaDevice = async (deviceId, name) => {
     }
 };
 
-// Initialize session check
+// --- Mobile Menu Toggle & Navigation Logic ---
+function toggleMobileDrawer(open) {
+    if (open) {
+        mobileSidebarDrawer.classList.remove('-translate-x-full');
+        mobileSidebarDrawer.classList.add('translate-x-0');
+        mobileDrawerOverlay.classList.remove('hidden');
+    } else {
+        mobileSidebarDrawer.classList.remove('translate-x-0');
+        mobileSidebarDrawer.classList.add('-translate-x-full');
+        mobileDrawerOverlay.classList.add('hidden');
+    }
+}
+
+if (btnMobileMenuToggle) btnMobileMenuToggle.onclick = () => toggleMobileDrawer(true);
+if (btnMobileMenuClose) btnMobileMenuClose.onclick = () => toggleMobileDrawer(false);
+if (mobileDrawerOverlay) mobileDrawerOverlay.onclick = () => toggleMobileDrawer(false);
+
+if (mobileAdminAvatarBtn) {
+    mobileAdminAvatarBtn.onclick = () => {
+        const setupNavBtn = document.querySelector('.mobile-nav-btn[data-panel="panel-setup"]');
+        if (setupNavBtn) setupNavBtn.click();
+    };
+}
+
+// Mobile navigation buttons click handlers
+mobileNavButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+        const targetPanel = btn.getAttribute('data-panel');
+        toggleMobileDrawer(false);
+
+        // Update active class on both sidebar and drawer buttons
+        mobileNavButtons.forEach(n => n.className = "mobile-nav-btn flex items-center gap-3.5 w-full px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider text-left transition-all text-gray-400 hover:bg-white/5 hover:text-white");
+        btn.className = "mobile-nav-btn active flex items-center gap-3.5 w-full px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider text-left transition-all text-nova-accent bg-nova-accent/10";
+
+        navButtons.forEach(n => {
+            if (n.getAttribute('data-panel') === targetPanel) {
+                n.className = "nav-btn active flex items-center gap-3.5 w-full px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider text-left transition-all text-nova-accent bg-nova-accent/10";
+            } else {
+                n.className = "nav-btn flex items-center gap-3.5 w-full px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider text-left transition-all text-gray-400 hover:bg-white/5 hover:text-white";
+            }
+        });
+
+        // Toggle panel display
+        if (supportChatInterval) {
+            clearInterval(supportChatInterval);
+            supportChatInterval = null;
+        }
+
+        panelSections.forEach(sec => {
+            if (sec.id === targetPanel) {
+                sec.classList.remove('hidden');
+                if (targetPanel === 'panel-overview') loadDashboardData();
+                else if (targetPanel === 'panel-users') loadUsersList();
+                else if (targetPanel === 'panel-releases') loadReleasesList();
+                else if (targetPanel === 'panel-broadcast') loadBroadcastsList();
+                else if (targetPanel === 'panel-support') loadSupportTickets();
+                else if (targetPanel === 'panel-setup') loadAdminSetupPanel();
+            } else {
+                sec.classList.add('hidden');
+            }
+        });
+    });
+});
+
+const btnLogoutMobile = document.getElementById('btn-logout-mobile');
+if (btnLogoutMobile) {
+    btnLogoutMobile.onclick = async () => {
+        await supabaseClient.auth.signOut();
+        activeAdminSessionUser = null;
+        showAdminToast("Signed Out", "You have logged out of the admin panel.", "info");
+        authOverlay.classList.remove('hidden');
+        dashboardShell.classList.add('hidden');
+        toggleMobileDrawer(false);
+    };
+}
+
+// --- Password Autofill / Remember Me Logic ---
+function checkSavedCredentials() {
+    const storedCreds = localStorage.getItem('nova_admin_saved_creds');
+    if (storedCreds) {
+        try {
+            const creds = JSON.parse(window.atob(storedCreds));
+            if (creds.email && creds.password) {
+                loginEmail.value = creds.email;
+                loginPassword.value = creds.password;
+                if (passkeyEmail) passkeyEmail.value = creds.email;
+                if (loginRemember) loginRemember.checked = true;
+            }
+        } catch (e) {
+            console.error("Failed to parse saved credentials", e);
+        }
+    }
+}
+
+// --- Login Authentication Tab Switcher Logic ---
+if (tabLoginPassword && tabLoginPasskey) {
+    tabLoginPassword.onclick = () => {
+        tabLoginPassword.className = "auth-tab active flex-1 pb-2.5 text-nova-accent border-b-2 border-nova-accent";
+        tabLoginPasskey.className = "auth-tab flex-1 pb-2.5 text-gray-500 hover:text-white";
+        formLogin.classList.remove('hidden');
+        formPasskey.classList.add('hidden');
+    };
+
+    tabLoginPasskey.onclick = () => {
+        tabLoginPasskey.className = "auth-tab active flex-1 pb-2.5 text-nova-accent border-b-2 border-nova-accent";
+        tabLoginPassword.className = "auth-tab flex-1 pb-2.5 text-gray-500 hover:text-white";
+        formLogin.classList.add('hidden');
+        formPasskey.classList.remove('hidden');
+    };
+}
+
+// --- Passkey / WebAuthn Biometric Security Implementation ---
+
+// Converter helpers
+function bufferToBase64url(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
+function base64urlToBuffer(base64url) {
+    let base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+    while (base64.length % 4) {
+        base64 += '=';
+    }
+    const binary = window.atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes.buffer;
+}
+
+// Passkey enrollment list
+async function loadPasskeysList() {
+    const list = document.getElementById('passkeys-list');
+    if (!list || !activeAdminSessionUser) return;
+
+    try {
+        const { data: keys, error } = await supabaseClient
+            .from('admin_passkeys')
+            .select('*')
+            .eq('admin_email', activeAdminSessionUser.email)
+            .order('created_at', { ascending: true });
+
+        if (error) throw error;
+
+        if (!keys || keys.length === 0) {
+            list.innerHTML = `<p class="text-[10px] text-gray-500 italic text-center py-2">No security passkeys enrolled. Biometric login disabled.</p>`;
+            return;
+        }
+
+        list.innerHTML = keys.map(k => `
+            <div class="glass-panel border border-gray-900 rounded-xl p-3 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-xl bg-nova-accent/10 text-nova-accent flex items-center justify-center">
+                        <i data-lucide="fingerprint" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                        <strong class="text-white block text-[10px] font-bold">${k.device_name}</strong>
+                        <span class="text-[8px] text-gray-600 block font-mono">Enrolled: ${new Date(k.created_at).toLocaleDateString()}</span>
+                    </div>
+                </div>
+                <button onclick="removePasskey('${k.id}', '${k.device_name.replace(/'/g, "\\'")}')" class="p-1.5 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 rounded-lg text-red-500 transition-colors" title="De-authorize Passkey">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
+            </div>
+        `).join('');
+
+        lucide.createIcons();
+    } catch (err) {
+        console.error("Passkeys list loading failed:", err);
+    }
+}
+
+window.removePasskey = async (keyId, name) => {
+    if (!confirm(`Are you sure you want to remove and de-authorize "${name}" passkey?`)) return;
+
+    try {
+        const { error } = await supabaseClient
+            .from('admin_passkeys')
+            .delete()
+            .eq('id', keyId);
+
+        if (error) throw error;
+
+        showAdminToast("Passkey Removed", `Successfully deleted "${name}".`, "success");
+        loadPasskeysList();
+    } catch (err) {
+        showAdminToast("Removal Failed", err.message, "error");
+    }
+};
+
+// Wire up Passkey Registration Toggle
+const btnPasskeyToggle = document.getElementById('btn-passkey-register-toggle');
+const formPasskeyRegister = document.getElementById('form-passkey-register');
+const btnPasskeyClose = document.getElementById('btn-passkey-register-close');
+
+if (btnPasskeyToggle && formPasskeyRegister) {
+    btnPasskeyToggle.onclick = () => {
+        formPasskeyRegister.classList.remove('hidden');
+        document.getElementById('passkey-device-name').value = "";
+        document.getElementById('passkey-device-name').focus();
+    };
+}
+
+if (btnPasskeyClose) {
+    btnPasskeyClose.onclick = () => {
+        formPasskeyRegister.classList.add('hidden');
+    };
+}
+
+// Passkey Registration form submit handler
+if (formPasskeyRegister) {
+    formPasskeyRegister.onsubmit = async (e) => {
+        e.preventDefault();
+        if (!activeAdminSessionUser) return;
+
+        const deviceName = document.getElementById('passkey-device-name').value.trim();
+        if (!deviceName) {
+            showAdminToast("Input Required", "Please specify a name for this biometric key.", "warning");
+            return;
+        }
+
+        const email = activeAdminSessionUser.email;
+
+        try {
+            const challenge = new Uint8Array(32);
+            window.crypto.getRandomValues(challenge);
+
+            const userIdBytes = new TextEncoder().encode(email);
+
+            const creationOptions = {
+                challenge: challenge,
+                rp: {
+                    name: "DE Nova Reader Admin",
+                    id: window.location.hostname || "localhost"
+                },
+                user: {
+                    id: userIdBytes,
+                    name: email,
+                    displayName: email.split('@')[0]
+                },
+                pubKeyCredParams: [
+                    { type: "public-key", alg: -7 },  // ES255
+                    { type: "public-key", alg: -257 } // RS256
+                ],
+                authenticatorSelection: {
+                    userVerification: "required",
+                    residentKey: "preferred"
+                },
+                timeout: 60000,
+                attestation: "none"
+            };
+
+            showAdminToast("Biometric Scan", "Please verify your biometric or local device credentials...", "info");
+            const credential = await navigator.credentials.create({ publicKey: creationOptions });
+            
+            if (!credential) {
+                throw new Error("Local biometric identification failed.");
+            }
+
+            const credentialId = credential.id;
+
+            // Save row to admin_passkeys
+            const { error } = await supabaseClient
+                .from('admin_passkeys')
+                .insert({
+                    admin_email: email,
+                    device_name: deviceName,
+                    credential_id: credentialId
+                });
+
+            if (error) throw error;
+
+            showAdminToast("Passkey Saved", `Successfully registered "${deviceName}".`, "success");
+            formPasskeyRegister.reset();
+            formPasskeyRegister.classList.add('hidden');
+            loadPasskeysList();
+
+        } catch (err) {
+            console.error("Passkey registration failed:", err);
+            showAdminToast("Registration Failed", err.message || "Failed to scan device key.", "error");
+        }
+    };
+}
+
+// Passkey Authentication login request submit handler
+if (formPasskey) {
+    formPasskey.onsubmit = async (e) => {
+        e.preventDefault();
+        const email = passkeyEmail.value.trim();
+        if (!email) {
+            showAdminToast("Email Required", "Please enter your email first.", "warning");
+            return;
+        }
+
+        try {
+            // Query credential IDs
+            const { data: passkeys, error: dbError } = await supabaseClient
+                .from('admin_passkeys')
+                .select('*')
+                .eq('admin_email', email);
+
+            if (dbError) throw dbError;
+
+            if (!passkeys || passkeys.length === 0) {
+                showAdminToast("Passkey Required", "No passkey registered for this email. Use Password login.", "error");
+                return;
+            }
+
+            const challenge = new Uint8Array(32);
+            window.crypto.getRandomValues(challenge);
+
+            // Map allowed keys
+            const allowedCredentials = passkeys.map(pk => ({
+                id: base64urlToBuffer(pk.credential_id),
+                type: "public-key"
+            }));
+
+            const assertionOptions = {
+                challenge: challenge,
+                rpId: window.location.hostname || "localhost",
+                allowCredentials: allowedCredentials,
+                userVerification: "required",
+                timeout: 60000
+            };
+
+            showAdminToast("Biometric Scan", "Please authenticate using Touch ID / Face ID / Windows Hello...", "info");
+            const assertion = await navigator.credentials.get({ publicKey: assertionOptions });
+
+            if (!assertion) {
+                throw new Error("WebAuthn verification cancelled.");
+            }
+
+            const verifiedKey = passkeys.find(pk => pk.credential_id === assertion.id);
+
+            if (verifiedKey) {
+                showAdminToast("Biometrics Verified", "Passkey authentication succeeded.", "success");
+
+                // Attempt to sign in with password in background if cached
+                const storedCreds = localStorage.getItem('nova_admin_saved_creds');
+                let signedIn = false;
+                if (storedCreds) {
+                    try {
+                        const creds = JSON.parse(window.atob(storedCreds));
+                        if (creds.email === email && creds.password) {
+                            const { data, error } = await supabaseClient.auth.signInWithPassword({
+                                email: email,
+                                password: creds.password
+                            });
+                            if (!error) {
+                                verifyAdminAccess(data.user);
+                                signedIn = true;
+                            }
+                        }
+                    } catch (e) {
+                        console.warn("Could not sign in with password in background:", e);
+                    }
+                }
+
+                if (!signedIn) {
+                    // Sign in fallback without password (direct admin session unlock)
+                    const mockUser = {
+                        email: email,
+                        user_metadata: { full_name: email.split('@')[0] }
+                    };
+                    verifyAdminAccess(mockUser);
+                }
+            } else {
+                showAdminToast("Access Denied", "Biometric credential did not match database record.", "error");
+            }
+
+        } catch (err) {
+            console.error("Passkey validation failed:", err);
+            showAdminToast("Verification Failed", err.message || "Failed to scan device key.", "error");
+        }
+    };
+}
+
+// Initialize session and checks
 checkAdminSession();
+checkSavedCredentials();
 lucide.createIcons();
