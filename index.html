@@ -34,6 +34,8 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Supabase Client JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- OTP Auth (MFA TOTP Validation) CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/otpauth@9.1.2/dist/otpauth.umd.min.js"></script>
     <!-- Custom CSS -->
     <link rel="stylesheet" href="./style.css">
 </head>
@@ -53,6 +55,7 @@
                 <p class="text-[9px] text-nova-accent font-semibold uppercase tracking-widest mt-1">Control Panel Login</p>
             </div>
 
+            <!-- Standard Password Login Form -->
             <form id="form-login" class="space-y-4 text-left">
                 <div>
                     <label class="text-[9px] text-gray-500 uppercase tracking-widest block mb-1">Email Address</label>
@@ -63,7 +66,26 @@
                     <input type="password" id="login-password" required class="w-full bg-black/40 border border-gray-800 rounded-xl px-3 py-2 text-xs focus:border-nova-accent outline-none text-white transition-all neon-border" placeholder="••••••••">
                 </div>
                 <button type="submit" class="w-full py-3 bg-nova-accent text-black font-extrabold text-xs uppercase tracking-widest rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_5px_15px_rgba(0,255,65,0.2)] mt-2">
-                    Verify Access
+                    Verify Credentials
+                </button>
+            </form>
+
+            <!-- Authenticator App TOTP Form (Hidden by default) -->
+            <form id="form-mfa" class="space-y-4 text-left hidden">
+                <div class="flex flex-col items-center mb-2">
+                    <i data-lucide="shield-check" class="w-8 h-8 text-nova-accent mb-1 animate-pulse"></i>
+                    <h3 class="text-sm font-bold text-white uppercase tracking-wider">MFA Verification</h3>
+                    <p id="mfa-prompt-text" class="text-[9px] text-gray-500 text-center mt-1">Provide your 6-digit authenticator code.</p>
+                </div>
+                <div>
+                    <label class="text-[9px] text-gray-500 uppercase tracking-widest block mb-1">Enter Code</label>
+                    <input type="text" id="mfa-token" required class="w-full bg-black/40 border border-gray-800 rounded-xl px-3 py-2.5 text-center text-sm font-mono tracking-[0.5em] focus:border-nova-accent outline-none text-white transition-all neon-border" placeholder="000000" maxlength="6" autocomplete="off">
+                </div>
+                <button type="submit" class="w-full py-3 bg-nova-accent text-black font-extrabold text-xs uppercase tracking-widest rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_5px_15px_rgba(0,255,65,0.2)] mt-2">
+                    Confirm OTP Code
+                </button>
+                <button type="button" id="btn-mfa-back" class="w-full text-center text-[10px] text-gray-500 hover:text-white uppercase tracking-widest mt-1.5 transition-colors">
+                    Back to Login
                 </button>
             </form>
         </div>
@@ -80,7 +102,7 @@
             </div>
             
             <!-- Navigation Links -->
-            <nav class="flex-1 px-4 py-6 space-y-2">
+            <nav class="flex-1 px-4 py-6 space-y-2 overflow-y-auto custom-scrollbar">
                 <button data-panel="panel-overview" class="nav-btn active flex items-center gap-3.5 w-full px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider text-left transition-all text-nova-accent bg-nova-accent/10">
                     <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard Overview
                 </button>
@@ -93,13 +115,20 @@
                 <button data-panel="panel-broadcast" class="nav-btn flex items-center gap-3.5 w-full px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider text-left transition-all text-gray-400 hover:bg-white/5 hover:text-white">
                     <i data-lucide="send" class="w-4 h-4"></i> Global Broadcasts
                 </button>
+                <button data-panel="panel-support" class="nav-btn flex items-center gap-3.5 w-full px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider text-left transition-all text-gray-400 hover:bg-white/5 hover:text-white">
+                    <i data-lucide="message-square" class="w-4 h-4"></i> Support Tickets
+                </button>
+                <button data-panel="panel-setup" class="nav-btn flex items-center gap-3.5 w-full px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider text-left transition-all text-gray-400 hover:bg-white/5 hover:text-white">
+                    <i data-lucide="shield" class="w-4 h-4"></i> Admin Setup
+                </button>
             </nav>
 
             <!-- Admin Info & Logout -->
             <div class="p-4 border-t border-gray-800/80 flex flex-col gap-3">
                 <div class="flex items-center gap-3 px-2">
-                    <div class="w-8 h-8 rounded-full bg-nova-accent/10 border border-nova-accent/30 flex items-center justify-center text-nova-accent text-xs font-bold">
-                        A
+                    <div id="admin-avatar-container" class="w-8 h-8 rounded-full bg-nova-accent/10 border border-nova-accent/30 flex items-center justify-center text-nova-accent text-xs font-bold overflow-hidden shrink-0">
+                        <img id="admin-sidebar-avatar-img" class="w-full h-full object-cover hidden" src="" alt="Avatar">
+                        <span id="admin-sidebar-avatar-placeholder">A</span>
                     </div>
                     <div class="min-w-0">
                         <span id="admin-name" class="text-xs font-bold text-white block truncate">Admin User</span>
@@ -122,41 +151,124 @@
                     <p class="text-xs text-gray-400 mt-1">Real-time statistics of DE Nova Reader application state</p>
                 </div>
                 
-                <!-- Counter Cards Grid -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div class="glass-panel rounded-2xl p-6 relative overflow-hidden">
-                        <div class="absolute top-0 left-0 w-1 h-full bg-nova-accent"></div>
-                        <div class="flex justify-between items-center">
-                            <div>
-                                <span class="text-[9px] text-gray-500 uppercase tracking-widest font-bold block">Total Registered Users</span>
-                                <h3 id="stat-total-users" class="text-3xl font-extrabold text-white mt-2">0</h3>
+                <!-- Counter Cards Grid (Categorized features) -->
+                <div>
+                    <h4 class="text-[10px] font-bold tracking-[0.2em] text-nova-accent uppercase mb-3.5">User Base & Sync Activity</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <div class="glass-panel rounded-2xl p-6 relative overflow-hidden">
+                            <div class="absolute top-0 left-0 w-1 h-full bg-nova-accent"></div>
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <span class="text-[9px] text-gray-500 uppercase tracking-widest font-bold block">Total Registered Users</span>
+                                    <h3 id="stat-total-users" class="text-3xl font-extrabold text-white mt-2">0</h3>
+                                </div>
+                                <div class="p-3 bg-nova-accent/10 text-nova-accent rounded-xl">
+                                    <i data-lucide="users" class="w-6 h-6"></i>
+                                </div>
                             </div>
-                            <div class="p-3 bg-nova-accent/10 text-nova-accent rounded-xl">
-                                <i data-lucide="users" class="w-6 h-6"></i>
+                        </div>
+                        <div class="glass-panel rounded-2xl p-6 relative overflow-hidden">
+                            <div class="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <span class="text-[9px] text-gray-500 uppercase tracking-widest font-bold block">Active Online Profiles</span>
+                                    <h3 id="stat-active-profiles" class="text-3xl font-extrabold text-white mt-2">0</h3>
+                                </div>
+                                <div class="p-3 bg-blue-500/10 text-blue-500 rounded-xl">
+                                    <i data-lucide="activity" class="w-6 h-6"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="glass-panel rounded-2xl p-6 relative overflow-hidden">
+                            <div class="absolute top-0 left-0 w-1 h-full bg-purple-500"></div>
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <span class="text-[9px] text-gray-500 uppercase tracking-widest font-bold block">Suspended Readers</span>
+                                    <h3 id="stat-suspended-users" class="text-3xl font-extrabold text-white mt-2">0</h3>
+                                </div>
+                                <div class="p-3 bg-purple-500/10 text-purple-500 rounded-xl">
+                                    <i data-lucide="user-x" class="w-6 h-6"></i>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <div class="glass-panel rounded-2xl p-6 relative overflow-hidden">
-                        <div class="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
-                        <div class="flex justify-between items-center">
-                            <div>
-                                <span class="text-[9px] text-gray-500 uppercase tracking-widest font-bold block">App Releases Published</span>
-                                <h3 id="stat-total-releases" class="text-3xl font-extrabold text-white mt-2">0</h3>
+
+                    <h4 class="text-[10px] font-bold tracking-[0.2em] text-nova-accent uppercase mb-3.5">System Deployment & Messaging</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <div class="glass-panel rounded-2xl p-6 relative overflow-hidden">
+                            <div class="absolute top-0 left-0 w-1 h-full bg-cyan-500"></div>
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <span class="text-[9px] text-gray-500 uppercase tracking-widest font-bold block">App Releases Published</span>
+                                    <h3 id="stat-total-releases" class="text-3xl font-extrabold text-white mt-2">0</h3>
+                                </div>
+                                <div class="p-3 bg-cyan-500/10 text-cyan-500 rounded-xl">
+                                    <i data-lucide="package" class="w-6 h-6"></i>
+                                </div>
                             </div>
-                            <div class="p-3 bg-blue-500/10 text-blue-500 rounded-xl">
-                                <i data-lucide="package" class="w-6 h-6"></i>
+                        </div>
+                        <div class="glass-panel rounded-2xl p-6 relative overflow-hidden">
+                            <div class="absolute top-0 left-0 w-1 h-full bg-orange-500"></div>
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <span class="text-[9px] text-gray-500 uppercase tracking-widest font-bold block">Broadcast Alerts Sent</span>
+                                    <h3 id="stat-total-broadcasts" class="text-3xl font-extrabold text-white mt-2">0</h3>
+                                </div>
+                                <div class="p-3 bg-orange-500/10 text-orange-500 rounded-xl">
+                                    <i data-lucide="megaphone" class="w-6 h-6"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="glass-panel rounded-2xl p-6 relative overflow-hidden">
+                            <div class="absolute top-0 left-0 w-1 h-full bg-emerald-500"></div>
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <span class="text-[9px] text-gray-500 uppercase tracking-widest font-bold block">Private Messages Sent</span>
+                                    <h3 id="stat-private-broadcasts" class="text-3xl font-extrabold text-white mt-2">0</h3>
+                                </div>
+                                <div class="p-3 bg-emerald-500/10 text-emerald-500 rounded-xl">
+                                    <i data-lucide="mail" class="w-6 h-6"></i>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <div class="glass-panel rounded-2xl p-6 relative overflow-hidden">
-                        <div class="absolute top-0 left-0 w-1 h-full bg-orange-500"></div>
-                        <div class="flex justify-between items-center">
-                            <div>
-                                <span class="text-[9px] text-gray-500 uppercase tracking-widest font-bold block">Broadcast Alerts Sent</span>
-                                <h3 id="stat-total-broadcasts" class="text-3xl font-extrabold text-white mt-2">0</h3>
+
+                    <h4 class="text-[10px] font-bold tracking-[0.2em] text-nova-accent uppercase mb-3.5">Customer Support Channels</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="glass-panel rounded-2xl p-6 relative overflow-hidden">
+                            <div class="absolute top-0 left-0 w-1 h-full bg-yellow-500"></div>
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <span class="text-[9px] text-gray-500 uppercase tracking-widest font-bold block">Active Open Tickets</span>
+                                    <h3 id="stat-open-tickets" class="text-3xl font-extrabold text-white mt-2">0</h3>
+                                </div>
+                                <div class="p-3 bg-yellow-500/10 text-yellow-500 rounded-xl">
+                                    <i data-lucide="alert-circle" class="w-6 h-6"></i>
+                                </div>
                             </div>
-                            <div class="p-3 bg-orange-500/10 text-orange-500 rounded-xl">
-                                <i data-lucide="megaphone" class="w-6 h-6"></i>
+                        </div>
+                        <div class="glass-panel rounded-2xl p-6 relative overflow-hidden">
+                            <div class="absolute top-0 left-0 w-1 h-full bg-green-500"></div>
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <span class="text-[9px] text-gray-500 uppercase tracking-widest font-bold block">Resolved Support Tickets</span>
+                                    <h3 id="stat-resolved-tickets" class="text-3xl font-extrabold text-white mt-2">0</h3>
+                                </div>
+                                <div class="p-3 bg-green-500/10 text-green-500 rounded-xl">
+                                    <i data-lucide="check-square" class="w-6 h-6"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="glass-panel rounded-2xl p-6 relative overflow-hidden">
+                            <div class="absolute top-0 left-0 w-1 h-full bg-red-500"></div>
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <span class="text-[9px] text-gray-500 uppercase tracking-widest font-bold block">System Status Check</span>
+                                    <h3 class="text-sm font-extrabold text-white mt-3 flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-nova-accent animate-ping"></span> ONLINE</h3>
+                                </div>
+                                <div class="p-3 bg-red-500/10 text-red-500 rounded-xl">
+                                    <i data-lucide="hard-drive" class="w-6 h-6"></i>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -169,9 +281,10 @@
                         <table class="w-full text-xs text-left text-gray-400">
                             <thead class="text-[9px] text-gray-500 uppercase tracking-wider border-b border-gray-800">
                                 <tr>
+                                    <th class="pb-3 font-semibold">Avatar</th>
                                     <th class="pb-3 font-semibold">Admin Email</th>
                                     <th class="pb-3 font-semibold">Authorized Date</th>
-                                    <th class="pb-3 font-semibold">Role</th>
+                                    <th class="pb-3 font-semibold">MFA Device Status</th>
                                 </tr>
                             </thead>
                             <tbody id="admin-list-body" class="divide-y divide-gray-900">
@@ -181,12 +294,18 @@
                     </div>
                 </div>
             </section>
-
+ 
             <!-- Tab Panel: User Accounts -->
             <section id="panel-users" class="panel-section space-y-8 hidden animate-fade-in">
-                <div class="border-b border-gray-800 pb-4">
-                    <h1 class="text-2xl font-bold tracking-wide text-white uppercase">User Accounts</h1>
-                    <p class="text-xs text-gray-400 mt-1">Manage user profiles, safety age verification badges, and account levels</p>
+                <div class="border-b border-gray-800 pb-4 flex justify-between items-center">
+                    <div>
+                        <h1 class="text-2xl font-bold tracking-wide text-white uppercase">User Accounts</h1>
+                        <p class="text-xs text-gray-400 mt-1">Manage user profiles, safety age verification badges, and account levels</p>
+                    </div>
+                    <!-- Export to CSV Option -->
+                    <button id="btn-export-csv" class="px-4 py-2.5 bg-nova-accent/10 hover:bg-nova-accent/20 border border-nova-accent/20 text-nova-accent text-[10px] font-bold uppercase tracking-widest rounded-xl transition-all flex items-center gap-2">
+                        <i data-lucide="download" class="w-3.5 h-3.5"></i> Export CSV
+                    </button>
                 </div>
                 
                 <!-- Users Table -->
@@ -198,8 +317,10 @@
                                     <th class="p-4 font-semibold">User Email</th>
                                     <th class="p-4 font-semibold">Full Name</th>
                                     <th class="p-4 font-semibold">Date of Birth</th>
-                                    <th class="p-4 font-semibold">Verification Badge</th>
+                                    <th class="p-4 font-semibold">Verification</th>
+                                    <th class="p-4 font-semibold">Account Status</th>
                                     <th class="p-4 font-semibold">Last Sync</th>
+                                    <th class="p-4 font-semibold text-right pr-6">Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="users-table-body" class="divide-y divide-gray-900/80">
@@ -228,7 +349,12 @@
                                     <input type="text" id="release-version" required placeholder="1.9.0" class="w-full bg-black/40 border border-gray-800 rounded-xl px-3.5 py-2.5 outline-none focus:border-nova-accent transition-all text-white neon-border font-mono font-bold">
                                 </div>
                                 <div>
-                                    <label class="text-[9px] text-gray-500 uppercase tracking-widest block mb-1.5">Release Title</label>
+                                    <label class="text-[9px] text-gray-500 uppercase tracking-widest block mb-1.5 flex justify-between items-center">
+                                        <span>Release Title</span>
+                                        <button type="button" id="btn-ai-title" class="text-nova-accent hover:underline uppercase tracking-wider font-extrabold text-[8px] flex items-center gap-1">
+                                            <i data-lucide="sparkles" class="w-3 h-3"></i> AI Generate
+                                        </button>
+                                    </label>
                                     <input type="text" id="release-title" required placeholder="AI Summaries & Library Sync" class="w-full bg-black/40 border border-gray-800 rounded-xl px-3.5 py-2.5 outline-none focus:border-nova-accent transition-all text-white neon-border font-bold">
                                 </div>
                             </div>
@@ -360,7 +486,230 @@
                     </div>
                 </div>
             </section>
+
+            <!-- Tab Panel: Support Tickets (NEW) -->
+            <section id="panel-support" class="panel-section hidden animate-fade-in h-[calc(100vh-8rem)] flex flex-col">
+                <div class="border-b border-gray-800 pb-4 shrink-0">
+                    <h1 class="text-2xl font-bold tracking-wide text-white uppercase">Customer Care Portal</h1>
+                    <p class="text-xs text-gray-400 mt-1">Interact with user support requests, solve issues, and reply in real-time</p>
+                </div>
+                
+                <div class="flex-1 flex gap-6 overflow-hidden mt-6">
+                    <!-- Left Column: Tickets list -->
+                    <div class="w-80 glass-panel rounded-2xl border border-gray-800 flex flex-col overflow-hidden">
+                        <div class="p-4 border-b border-gray-800/80 flex items-center justify-between shrink-0">
+                            <span class="text-[10px] font-bold tracking-[0.2em] text-nova-accent uppercase">Open Tickets</span>
+                            <span id="support-active-count" class="px-2 py-0.5 bg-nova-accent/10 border border-nova-accent/30 text-nova-accent rounded-full text-[8px] font-bold">0</span>
+                        </div>
+                        <div id="support-tickets-list" class="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2.5">
+                            <!-- Support tickets loaded dynamically here -->
+                            <p class="text-[10px] text-gray-500 italic text-center py-4">No tickets currently submitted.</p>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Active Conversation thread -->
+                    <div id="support-chat-pane" class="flex-1 glass-panel rounded-2xl border border-gray-800 flex flex-col overflow-hidden relative">
+                        <!-- Empty State Notice -->
+                        <div id="support-chat-empty-state" class="absolute inset-0 flex flex-col items-center justify-center text-center p-6 text-gray-500 z-10">
+                            <i data-lucide="message-square-dashed" class="w-10 h-10 mb-3 text-gray-600 animate-pulse"></i>
+                            <strong class="text-white block text-xs uppercase tracking-widest font-semibold">Select a Support Ticket</strong>
+                            <p class="text-[10px] mt-1">Select a ticket from the left panel to load the customer care live chat thread.</p>
+                        </div>
+
+                        <!-- Active Chat Header -->
+                        <div id="support-chat-header" class="hidden p-4 border-b border-gray-800/80 flex justify-between items-center bg-white/2 shrink-0">
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-2">
+                                    <span id="chat-ticket-category" class="px-2 py-0.5 bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-full text-[8px] font-extrabold uppercase tracking-wide">Category</span>
+                                    <span id="chat-ticket-id" class="text-[9px] text-gray-600 font-mono">ID</span>
+                                </div>
+                                <span id="chat-ticket-email" class="text-xs font-bold text-white block mt-1 block truncate">user@email.com</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button id="btn-resolve-ticket" class="px-3.5 py-1.5 bg-nova-accent text-black font-extrabold text-[9px] uppercase tracking-widest rounded-xl hover:scale-[1.03] active:scale-[0.97] transition-all shadow-[0_3px_8px_rgba(0,255,65,0.15)]">
+                                    Resolve Ticket
+                                </button>
+                                <button id="btn-reopen-ticket" class="hidden px-3.5 py-1.5 bg-orange-500 text-white font-extrabold text-[9px] uppercase tracking-widest rounded-xl hover:scale-[1.03] active:scale-[0.97] transition-all">
+                                    Re-Open
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Chat stream area -->
+                        <div id="support-chat-messages" class="hidden flex-1 p-5 overflow-y-auto custom-scrollbar space-y-4">
+                            <!-- Messages stream loaded dynamically here -->
+                        </div>
+
+                        <!-- Quick reply input box -->
+                        <div id="support-chat-input-block" class="hidden p-4 border-t border-gray-800/80 bg-black/40 shrink-0">
+                            <form id="form-support-reply" class="flex gap-3 items-center">
+                                <textarea id="support-reply-text" rows="1" placeholder="Type administrative response here..." required class="flex-1 bg-[#0f0f0f] border border-gray-800 rounded-xl px-4 py-3 text-xs outline-none focus:border-nova-accent transition-colors text-white resize-none max-h-24"></textarea>
+                                <button type="submit" class="p-3 bg-nova-accent text-black rounded-xl hover:scale-[1.05] active:scale-[0.95] transition-all shadow-[0_4px_10px_rgba(0,255,65,0.2)] shrink-0">
+                                    <i data-lucide="send" class="w-4 h-4"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab Panel: Admin Setup (NEW) -->
+            <section id="panel-setup" class="panel-section space-y-8 hidden animate-fade-in">
+                <div class="border-b border-gray-800 pb-4">
+                    <h1 class="text-2xl font-bold tracking-wide text-white uppercase">Admin Setup & Security</h1>
+                    <p class="text-xs text-gray-400 mt-1">Configure administrator profile picture, authenticator MFA, and sub-admin invitations</p>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Column 1: Profile and Sub-Admin invitation -->
+                    <div class="space-y-8">
+                        <!-- Admin Profile Photo Card -->
+                        <div class="glass-panel rounded-2xl p-6 border border-gray-800 space-y-4">
+                            <h3 class="text-xs font-bold uppercase tracking-[0.2em] text-nova-accent border-b border-gray-800 pb-3">Admin Avatar</h3>
+                            <div class="flex items-center gap-5">
+                                <div id="admin-setup-avatar-placeholder" class="w-16 h-16 rounded-2xl bg-nova-accent/10 border border-nova-accent/30 flex items-center justify-center text-nova-accent text-2xl font-bold overflow-hidden shrink-0">
+                                    <img id="admin-setup-avatar-img" class="w-full h-full object-cover hidden" src="" alt="Avatar">
+                                    <span id="admin-setup-avatar-placeholder-text">A</span>
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="px-4 py-2 bg-nova-accent text-black font-extrabold text-[10px] uppercase tracking-widest rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer inline-block">
+                                        <i data-lucide="upload" class="w-3.5 h-3.5 inline mr-1 text-black"></i> Upload Picture
+                                        <input type="file" id="admin-avatar-input" accept="image/*" class="hidden">
+                                    </label>
+                                    <button id="btn-admin-avatar-delete" class="hidden px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 text-[10px] font-bold uppercase tracking-widest rounded-xl transition-colors block">
+                                        Remove Avatar
+                                    </button>
+                                    <p class="text-[9px] text-gray-600 uppercase">Formats: PNG, JPG, GIF. Max 2MB.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sub-Admin Registry Form -->
+                        <div class="glass-panel rounded-2xl p-6 border border-gray-800 space-y-4">
+                            <h3 class="text-xs font-bold uppercase tracking-[0.2em] text-nova-accent border-b border-gray-800 pb-3">Create Sub-Admin</h3>
+                            <form id="form-subadmin" class="space-y-4 text-xs">
+                                <div>
+                                    <label class="text-[9px] text-gray-500 uppercase tracking-widest block mb-1.5">New Administrator Email</label>
+                                    <input type="email" id="subadmin-email" required placeholder="subadmin@nova.com" class="w-full bg-black/40 border border-gray-800 rounded-xl px-3.5 py-2.5 outline-none focus:border-nova-accent transition-all text-white neon-border">
+                                </div>
+                                <button type="submit" class="w-full py-3 bg-nova-accent text-black font-extrabold text-xs uppercase tracking-widest rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_5px_15px_rgba(0,255,65,0.2)]">
+                                    Authorize Admin Email
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Column 2: MFA Authenticators List & Enrollment -->
+                    <div class="space-y-8">
+                        <div class="glass-panel rounded-2xl p-6 border border-gray-800 space-y-4">
+                            <div class="flex justify-between items-center border-b border-gray-800 pb-3 shrink-0">
+                                <h3 class="text-xs font-bold uppercase tracking-[0.2em] text-nova-accent">Multi-Factor Authenticator Apps</h3>
+                                <button id="btn-mfa-enroll-toggle" class="text-nova-accent hover:underline uppercase tracking-wider font-extrabold text-[9px] flex items-center gap-1">
+                                    <i data-lucide="plus" class="w-3.5 h-3.5"></i> Add App
+                                </button>
+                            </div>
+
+                            <!-- Registered MFA Devices list -->
+                            <div id="mfa-devices-list" class="space-y-3">
+                                <!-- Enrolled authenticators loaded dynamically -->
+                            </div>
+
+                            <!-- Enrollment Interface Card (Hidden by default) -->
+                            <div id="mfa-enrollment-card" class="hidden border border-gray-800 bg-white/2 rounded-2xl p-4 space-y-4 animate-fade-in">
+                                <div class="flex justify-between items-center">
+                                    <strong class="text-white text-[10px] uppercase tracking-wider">Enroll Authenticator</strong>
+                                    <button id="btn-mfa-enroll-close" class="p-1 hover:bg-white/10 rounded text-gray-500 hover:text-white transition-colors">
+                                        <i data-lucide="x" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
+                                
+                                <div class="flex flex-col md:flex-row gap-4 items-center">
+                                    <!-- QR Code container -->
+                                    <div class="w-32 h-32 bg-white rounded-xl p-2 flex items-center justify-center shrink-0">
+                                        <img id="mfa-qr-img" class="w-full h-full object-contain" src="" alt="QR Code">
+                                    </div>
+                                    <div class="space-y-2 flex-1 min-w-0">
+                                        <p class="text-[9px] text-gray-400 leading-normal uppercase">1. Scan the QR code with Google Authenticator or Microsoft Authenticator.</p>
+                                        <p class="text-[9px] text-gray-400 leading-normal uppercase">2. Alternatively, input the secret key below manually:</p>
+                                        <code id="mfa-secret-display" class="block bg-black p-2 border border-gray-800 rounded-lg text-nova-accent font-mono text-[9px] font-bold text-center tracking-wider select-all">SECRETKEY</code>
+                                    </div>
+                                </div>
+
+                                <form id="form-mfa-enroll" class="space-y-3.5 text-xs text-left">
+                                    <div>
+                                        <label class="text-[9px] text-gray-500 uppercase tracking-widest block mb-1">Device Name (e.g. iPhone, Work Key)</label>
+                                        <input type="text" id="mfa-device-name" required placeholder="iPhone Authenticator" class="w-full bg-black/40 border border-gray-800 rounded-xl px-3 py-2 outline-none focus:border-nova-accent transition-all text-white font-bold">
+                                    </div>
+                                    <div>
+                                        <label class="text-[9px] text-gray-500 uppercase tracking-widest block mb-1">Verification Code</label>
+                                        <input type="text" id="mfa-verify-token" required placeholder="000000" maxlength="6" class="w-full bg-black/40 border border-gray-800 rounded-xl px-3 py-2 text-center font-mono tracking-widest focus:border-nova-accent outline-none text-white font-bold">
+                                    </div>
+                                    <button type="submit" class="w-full py-2.5 bg-nova-accent text-black font-extrabold text-[10px] uppercase tracking-widest rounded-xl hover:scale-[1.01] active:scale-[0.99] transition-all">
+                                        Verify & Save Device
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
         </main>
+    </div>
+
+    <!-- Modals Section -->
+
+    <!-- User Edit Profile Override Modal -->
+    <div id="modal-user-edit" class="fixed inset-0 z-[180] bg-black/80 backdrop-blur-sm flex items-center justify-center hidden animate-fade-in">
+        <div class="glass-panel border border-gray-800 rounded-3xl p-6 max-w-sm w-full mx-4 relative">
+            <h3 class="text-sm font-bold text-white uppercase tracking-wider mb-4 border-b border-gray-850 pb-2">Edit User Profile</h3>
+            <form id="form-user-edit" class="space-y-4 text-xs text-left">
+                <input type="hidden" id="edit-user-id">
+                <div>
+                    <label class="text-[9px] text-gray-500 uppercase tracking-widest block mb-1">Full Name</label>
+                    <input type="text" id="edit-user-fullname" required class="w-full bg-black/40 border border-gray-800 rounded-xl px-3 py-2 focus:border-nova-accent outline-none text-white font-bold">
+                </div>
+                <div>
+                    <label class="text-[9px] text-gray-500 uppercase tracking-widest block mb-1">Date of Birth</label>
+                    <input type="date" id="edit-user-dob" required class="w-full bg-black/40 border border-gray-800 rounded-xl px-3 py-2 focus:border-nova-accent outline-none text-white font-mono">
+                </div>
+                <div class="flex gap-3.5 pt-2">
+                    <button type="submit" class="flex-1 py-3 bg-nova-accent text-black font-extrabold uppercase tracking-widest rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all text-[10px]">Save Changes</button>
+                    <button type="button" id="btn-user-edit-close" class="flex-1 py-3 bg-white/5 border border-white/10 hover:bg-white/10 text-white font-bold uppercase tracking-widest rounded-xl text-[10px]">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- User Send Direct Message (DM) Modal -->
+    <div id="modal-user-dm" class="fixed inset-0 z-[180] bg-black/80 backdrop-blur-sm flex items-center justify-center hidden animate-fade-in">
+        <div class="glass-panel border border-gray-800 rounded-3xl p-6 max-w-md w-full mx-4 relative">
+            <h3 class="text-sm font-bold text-white uppercase tracking-wider mb-2">Send Direct Message</h3>
+            <p id="dm-user-target" class="text-[9px] text-nova-accent font-semibold uppercase tracking-wider mb-4">Target: user@email.com</p>
+            <form id="form-user-dm" class="space-y-4 text-xs text-left">
+                <input type="hidden" id="dm-user-id">
+                <div>
+                    <label class="text-[9px] text-gray-500 uppercase tracking-widest block mb-1">Message Title</label>
+                    <input type="text" id="dm-title" required placeholder="Important Account Notice" class="w-full bg-black/40 border border-gray-800 rounded-xl px-3 py-2 focus:border-nova-accent outline-none text-white font-bold">
+                </div>
+                <div>
+                    <label class="text-[9px] text-gray-500 uppercase tracking-widest block mb-1">Severity Type</label>
+                    <select id="dm-type" class="w-full bg-black/40 border border-gray-800 rounded-xl px-3 py-2.5 focus:border-nova-accent outline-none text-white font-bold">
+                        <option value="info">Info (Blue)</option>
+                        <option value="success">Success (Green)</option>
+                        <option value="warning">Warning (Orange)</option>
+                        <option value="error">Error (Red)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[9px] text-gray-500 uppercase tracking-widest block mb-1">Message Content</label>
+                    <textarea id="dm-message" rows="4" required placeholder="Type your notification message details here..." class="w-full bg-black/40 border border-gray-800 rounded-2xl px-4 py-3 outline-none focus:border-nova-accent transition-all text-white leading-relaxed resize-none"></textarea>
+                </div>
+                <div class="flex gap-3.5 pt-2">
+                    <button type="submit" class="flex-1 py-3 bg-nova-accent text-black font-extrabold uppercase tracking-widest rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all text-[10px]">Dispatch DM</button>
+                    <button type="button" id="btn-user-dm-close" class="flex-1 py-3 bg-white/5 border border-white/10 hover:bg-white/10 text-white font-bold uppercase tracking-widest rounded-xl text-[10px]">Cancel</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <!-- Glassmorphic Notifications Toast Container -->
