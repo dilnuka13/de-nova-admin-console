@@ -394,6 +394,9 @@
                 <button data-panel="panel-users" class="nav-btn flex items-center gap-3.5 w-full px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider text-left transition-all text-gray-400 hover:bg-white/5 hover:text-white">
                     <i data-lucide="users" class="w-4 h-4"></i> User Accounts
                 </button>
+                <button data-panel="panel-storage" class="nav-btn flex items-center gap-3.5 w-full px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider text-left transition-all text-gray-400 hover:bg-white/5 hover:text-white">
+                    <i data-lucide="hard-drive" class="w-4 h-4"></i> Cloud Storage
+                </button>
                 <button data-panel="panel-releases" class="nav-btn flex items-center gap-3.5 w-full px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider text-left transition-all text-gray-400 hover:bg-white/5 hover:text-white">
                     <i data-lucide="upload-cloud" class="w-4 h-4"></i> App Releases
                 </button>
@@ -610,6 +613,78 @@
                             </thead>
                             <tbody id="users-table-body" class="divide-y divide-gray-900/80">
                                 <!-- Users entries loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab Panel: Cloud Storage -->
+            <section id="panel-storage" class="panel-section space-y-8 hidden animate-fade-in">
+                <div class="border-b border-gray-800 pb-4">
+                    <h1 class="text-2xl font-bold tracking-wide text-white uppercase">Cloud Storage Monitor</h1>
+                    <p class="text-xs text-gray-400 mt-1">Manage files uploaded by users to Supabase and view total storage consumption</p>
+                </div>
+                
+                <!-- Storage Stats / Progress Bar Card -->
+                <div class="glass-panel rounded-2xl p-6 border border-gray-800 space-y-4">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div>
+                            <span class="text-[9px] text-gray-500 uppercase tracking-widest font-bold block">Total Cloud Usage</span>
+                            <div class="flex items-baseline gap-2 mt-1">
+                                <h3 id="storage-total-used" class="text-3xl font-extrabold text-white">0.00 MB</h3>
+                                <span id="storage-total-allocated" class="text-xs text-gray-500">of 500.00 MB allocated</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-6">
+                            <div class="text-right">
+                                <span class="text-[9px] text-gray-500 uppercase tracking-widest font-bold block">Total Uploaded Files</span>
+                                <h3 id="storage-total-files" class="text-xl font-bold text-nova-accent mt-0.5">0</h3>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-[9px] text-gray-500 uppercase tracking-widest font-bold block">Active Buckets</span>
+                                <h3 id="storage-total-buckets" class="text-xl font-bold text-blue-400 mt-0.5">0</h3>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Progress Bar -->
+                    <div class="space-y-1.5">
+                        <div class="flex justify-between text-[10px] text-gray-400">
+                            <span>System Storage Allocation</span>
+                            <span id="storage-usage-percent" class="font-bold text-nova-accent">0%</span>
+                        </div>
+                        <div class="w-full h-2.5 bg-white/5 border border-white/10 rounded-full overflow-hidden relative">
+                            <div id="storage-usage-bar" class="absolute top-0 left-0 h-full bg-nova-accent w-0 transition-all duration-500 rounded-full shadow-[0_0_10px_rgba(0,255,65,0.6)]"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Cloud Files Table -->
+                <div class="glass-panel rounded-2xl border border-gray-800 overflow-hidden">
+                    <div class="p-4 border-b border-gray-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <span class="text-xs font-bold tracking-wider text-white uppercase">User Files List</span>
+                        <div class="flex items-center gap-2">
+                            <input type="text" id="admin-storage-search" class="bg-black/40 border border-gray-800 rounded-xl px-3 py-1.5 text-xs text-white focus:border-nova-accent outline-none font-mono" placeholder="Filter by email or file...">
+                            <button id="btn-refresh-storage" class="px-3.5 py-1.5 bg-nova-accent/10 hover:bg-nova-accent/20 border border-nova-accent/20 text-nova-accent text-[9px] font-bold uppercase tracking-widest rounded-xl transition-all flex items-center gap-1.5">
+                                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh Storage
+                            </button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs text-left text-gray-400">
+                            <thead class="bg-white/2 text-[9px] text-gray-500 uppercase tracking-wider border-b border-gray-800">
+                                <tr>
+                                    <th class="p-4 font-semibold">File Name</th>
+                                    <th class="p-4 font-semibold">Size</th>
+                                    <th class="p-4 font-semibold">Uploaded By</th>
+                                    <th class="p-4 font-semibold">User Email</th>
+                                    <th class="p-4 font-semibold">Storage Location</th>
+                                    <th class="p-4 font-semibold text-right pr-6">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="storage-files-body" class="divide-y divide-gray-900/80">
+                                <!-- Storage entries loaded here -->
                             </tbody>
                         </table>
                     </div>
@@ -1072,6 +1147,9 @@
             <button data-panel="panel-users" class="mobile-nav-btn flex items-center gap-3.5 w-full px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider text-left transition-all text-gray-400 hover:bg-white/5 hover:text-white">
                 <i data-lucide="users" class="w-4 h-4"></i> User Accounts
             </button>
+            <button data-panel="panel-storage" class="mobile-nav-btn flex items-center gap-3.5 w-full px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider text-left transition-all text-gray-400 hover:bg-white/5 hover:text-white">
+                <i data-lucide="hard-drive" class="w-4 h-4"></i> Cloud Storage
+            </button>
             <button data-panel="panel-releases" class="mobile-nav-btn flex items-center gap-3.5 w-full px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-wider text-left transition-all text-gray-400 hover:bg-white/5 hover:text-white">
                 <i data-lucide="upload-cloud" class="w-4 h-4"></i> App Releases
             </button>
@@ -1331,6 +1409,7 @@
                         else if (targetPanel === 'panel-broadcast') loadBroadcastsList();
                         else if (targetPanel === 'panel-support') loadSupportTickets();
                         else if (targetPanel === 'panel-setup') loadAdminSetupPanel();
+                        else if (targetPanel === 'panel-storage') loadAdminStorageData();
                     } else {
                         sec.classList.add('hidden');
                     }
@@ -1602,6 +1681,9 @@
                                     </button>
                                     <button onclick="openDirectMessageModal('${p.user_id}', '${p.email.replace(/'/g, "\\'")}')" class="p-1.5 hover:bg-white/5 border border-transparent hover:border-gray-800 rounded-lg text-blue-400 hover:text-blue-300 transition-all" title="Send Private Notification">
                                         <i data-lucide="mail" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                    <button onclick="viewUserCloudStorage('${p.email}')" class="p-1.5 hover:bg-white/5 border border-transparent hover:border-gray-800 rounded-lg text-nova-accent hover:text-nova-accentHover transition-all" title="View Cloud Storage Files">
+                                        <i data-lucide="hard-drive" class="w-3.5 h-3.5"></i>
                                     </button>
                                     <button onclick="deleteUserProfile('${p.user_id}')" class="p-1.5 hover:bg-white/5 border border-transparent hover:border-gray-800 rounded-lg text-red-500 hover:text-red-400 transition-all" title="Delete User Profile">
                                         <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
@@ -2691,6 +2773,7 @@
                         else if (targetPanel === 'panel-broadcast') loadBroadcastsList();
                         else if (targetPanel === 'panel-support') loadSupportTickets();
                         else if (targetPanel === 'panel-setup') loadAdminSetupPanel();
+                        else if (targetPanel === 'panel-storage') loadAdminStorageData();
                     } else {
                         sec.classList.add('hidden');
                     }
@@ -3015,6 +3098,252 @@
                     showAdminToast("Verification Failed", err.message || "Failed to scan device key.", "error");
                 }
             };
+        }
+
+        // 13. Admin Cloud Storage Monitor & Management
+        async function loadAdminStorageData() {
+            const tableBody = document.getElementById('storage-files-body');
+            if (!tableBody) return;
+            
+            tableBody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-gray-500 font-bold uppercase tracking-wider">Scanning cloud storage...</td></tr>`;
+            
+            try {
+                // Fetch user profiles to map user_id -> email/fullname
+                const { data: profiles, error: profilesError } = await supabaseClient
+                    .from('user_profiles')
+                    .select('user_id, email, full_name');
+                    
+                if (profilesError) throw profilesError;
+                
+                const profileMap = {};
+                if (profiles) {
+                    profiles.forEach(p => {
+                        profileMap[p.user_id] = p;
+                        const cleanId = p.user_id.toLowerCase().replace(/[^a-z0-9-]/g, '');
+                        profileMap[cleanId] = p;
+                    });
+                }
+                
+                let allFiles = [];
+                let activeBucketsCount = 0;
+                
+                // Fetch list of buckets
+                let buckets = [];
+                try {
+                    const { data: bList, error: bErr } = await supabaseClient.storage.listBuckets();
+                    if (!bErr && bList) {
+                        buckets = bList;
+                    }
+                } catch (err) {
+                    console.warn("Could not list buckets, trying fallback method:", err);
+                }
+                
+                // Scan user-storage-* buckets
+                const userStorageBuckets = buckets.filter(b => b.name.startsWith('user-storage-'));
+                activeBucketsCount = userStorageBuckets.length;
+                
+                const bucketPromises = userStorageBuckets.map(async (bucket) => {
+                    try {
+                        const cleanId = bucket.name.replace('user-storage-', '');
+                        const userProfile = profileMap[cleanId] || { email: 'Unknown User', full_name: 'Unknown' };
+                        
+                        const { data: files, error } = await supabaseClient.storage
+                            .from(bucket.name)
+                            .list('');
+                            
+                        if (error) return;
+                        
+                        if (files) {
+                            files.forEach(f => {
+                                if (f.name !== '.emptyFolderPlaceholder') {
+                                    allFiles.push({
+                                        name: f.name,
+                                        size: f.metadata?.size || f.size || 0,
+                                        ownerEmail: userProfile.email,
+                                        ownerName: userProfile.full_name,
+                                        bucket: bucket.name,
+                                        path: f.name,
+                                        updatedAt: f.updated_at || f.created_at || null
+                                    });
+                                }
+                            });
+                        }
+                    } catch (e) {
+                        console.error(`Error listing bucket ${bucket.name}:`, e);
+                    }
+                });
+                
+                await Promise.all(bucketPromises);
+                
+                // Scan avatars bucket (fallback folder 'user-files/')
+                try {
+                    const { data: userFolders, error: folderErr } = await supabaseClient.storage
+                        .from('avatars')
+                        .list('user-files');
+                        
+                    if (!folderErr && userFolders) {
+                        activeBucketsCount++;
+                        const folderPromises = userFolders.map(async (folder) => {
+                            const userId = folder.name;
+                            const userProfile = profileMap[userId] || { email: 'Unknown User', full_name: 'Unknown' };
+                            
+                            const { data: files, error } = await supabaseClient.storage
+                                .from('avatars')
+                                .list(`user-files/${userId}`);
+                                
+                            if (!error && files) {
+                                files.forEach(f => {
+                                    if (f.name !== '.emptyFolderPlaceholder') {
+                                        allFiles.push({
+                                            name: f.name,
+                                            size: f.metadata?.size || f.size || 0,
+                                            ownerEmail: userProfile.email,
+                                            ownerName: userProfile.full_name,
+                                            bucket: 'avatars',
+                                            path: `user-files/${userId}/${f.name}`,
+                                            updatedAt: f.updated_at || f.created_at || null
+                                        });
+                                    }
+                                });
+                            }
+                        });
+                        await Promise.all(folderPromises);
+                    }
+                } catch (e) {
+                    console.error("Error listing avatars fallback storage:", e);
+                }
+                
+                // Update UI stats
+                let totalSize = 0;
+                allFiles.forEach(f => totalSize += f.size);
+                
+                const totalMB = (totalSize / (1024 * 1024)).toFixed(2);
+                const allocatedMB = 500.00;
+                const percent = Math.min(100, (totalSize / (allocatedMB * 1024 * 1024)) * 100).toFixed(1);
+                
+                document.getElementById('storage-total-used').textContent = `${totalMB} MB`;
+                document.getElementById('storage-total-allocated').textContent = `of ${allocatedMB.toFixed(2)} MB allocated`;
+                document.getElementById('storage-total-files').textContent = allFiles.length;
+                document.getElementById('storage-total-buckets').textContent = activeBucketsCount;
+                document.getElementById('storage-usage-percent').textContent = `${percent}%`;
+                document.getElementById('storage-usage-bar').style.width = `${percent}%`;
+                
+                // Populate table
+                window.adminCloudFilesList = allFiles;
+                allFiles.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
+                
+                renderAdminStorageTable(allFiles);
+                
+            } catch (err) {
+                showAdminToast("Scan Storage Failed", err.message, "error");
+            }
+        }
+
+        // Modular table rendering
+        function renderAdminStorageTable(files) {
+            const tableBody = document.getElementById('storage-files-body');
+            if (!tableBody) return;
+
+            if (files.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-gray-500 font-bold uppercase tracking-wider">No matching files found.</td></tr>`;
+                return;
+            }
+
+            tableBody.innerHTML = files.map(f => {
+                const sizeMB = (f.size / (1024 * 1024)).toFixed(2);
+                const cleanPath = f.path.replace(/'/g, "\\'");
+                const cleanName = f.name.replace(/'/g, "\\'");
+                const cleanBucket = f.bucket.replace(/'/g, "\\'");
+                
+                return `
+                    <tr>
+                        <td class="p-4 font-bold text-white max-w-[200px] truncate" title="${f.name}">${f.name}</td>
+                        <td class="p-4 font-mono">${sizeMB} MB</td>
+                        <td class="p-4">${f.ownerName || 'Unknown'}</td>
+                        <td class="p-4 font-mono text-gray-400">${f.ownerEmail || 'Unknown'}</td>
+                        <td class="p-4 font-mono text-[10px] text-gray-500">
+                            <span class="px-1.5 py-0.5 rounded bg-white/2 border border-white/5 uppercase text-[8px] tracking-wider font-bold block w-fit">
+                                ${f.bucket}
+                            </span>
+                            <span class="block mt-1 text-[9px] truncate max-w-[150px]" title="${f.path}">${f.path}</span>
+                        </td>
+                        <td class="p-4 text-right pr-6 shrink-0">
+                            <div class="inline-flex gap-2">
+                                <button onclick="downloadUserCloudFile('${cleanBucket}', '${cleanPath}', '${cleanName}')" class="p-1.5 hover:bg-white/5 border border-transparent hover:border-gray-800 rounded-lg text-nova-accent hover:text-nova-accentHover transition-all" title="Download / Open File">
+                                    <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                                </button>
+                                <button onclick="deleteUserCloudFile('${cleanBucket}', '${cleanPath}', '${cleanName}')" class="p-1.5 hover:bg-white/5 border border-transparent hover:border-gray-800 rounded-lg text-red-500 hover:text-red-400 transition-all" title="Delete File">
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+            
+            if (window.lucide) lucide.createIcons();
+        }
+
+        // Filter event input binding
+        const adminStorageSearch = document.getElementById('admin-storage-search');
+        if (adminStorageSearch) {
+            adminStorageSearch.oninput = () => {
+                const query = adminStorageSearch.value.toLowerCase().trim();
+                const filtered = (window.adminCloudFilesList || []).filter(f => 
+                    f.name.toLowerCase().includes(query) || 
+                    f.ownerEmail.toLowerCase().includes(query) || 
+                    f.ownerName.toLowerCase().includes(query)
+                );
+                renderAdminStorageTable(filtered);
+            };
+        }
+
+        // Global quick filter utility linking Accounts -> Storage
+        window.viewUserCloudStorage = function(email) {
+            // Find navigation button for storage and trigger click
+            const storageNavBtn = document.querySelector('.nav-btn[data-panel="panel-storage"]');
+            if (storageNavBtn) {
+                storageNavBtn.click();
+            }
+            
+            // Set input value and run filtering
+            if (adminStorageSearch) {
+                adminStorageSearch.value = email;
+                // Wait for files to load, then apply search text filter
+                setTimeout(() => {
+                    const filtered = (window.adminCloudFilesList || []).filter(f => 
+                        f.ownerEmail.toLowerCase().includes(email.toLowerCase())
+                    );
+                    renderAdminStorageTable(filtered);
+                }, 400);
+            }
+        };
+
+        window.deleteUserCloudFile = async function(bucket, path, fileName) {
+            if (!confirm(`Are you sure you want to permanently delete "${fileName}" from the user's storage?`)) return;
+            try {
+                const { error } = await supabaseClient.storage.from(bucket).remove([path]);
+                if (error) throw error;
+                showAdminToast("File Deleted", `Successfully removed "${fileName}".`, "success");
+                loadAdminStorageData();
+            } catch (e) {
+                showAdminToast("Delete Failed", e.message, "error");
+            }
+        };
+
+        window.downloadUserCloudFile = async function(bucket, path, fileName) {
+            try {
+                const { data, error } = await supabaseClient.storage.from(bucket).createSignedUrl(path, 60);
+                if (error) throw error;
+                window.open(data.signedUrl, '_blank');
+            } catch (e) {
+                showAdminToast("Failed to Open File", e.message, "error");
+            }
+        };
+
+        const btnRefreshStorage = document.getElementById('btn-refresh-storage');
+        if (btnRefreshStorage) {
+            btnRefreshStorage.onclick = () => loadAdminStorageData();
         }
 
         // Initialize session and checks
